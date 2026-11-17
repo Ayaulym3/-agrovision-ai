@@ -30,7 +30,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Нақты уақыттағы ауа райын алу функциясы (Open-Meteo API)
 def get_live_weather(region_name):
     coords = {
         "Солтүстік Қазақстан (Ақмола, Қостанай, СҚО)": (53.21, 63.62),
@@ -52,7 +51,6 @@ def create_demo_leaf(condition="yellow_rust"):
     img = Image.new('RGB', (400, 400), color=(240, 245, 240))
     draw = ImageDraw.Draw(img)
     draw.polygon([(80, 350), (150, 150), (320, 50), (250, 250)], fill=(34, 139, 34))
-    
     if condition == "yellow_rust":
         for _ in range(35):
             x = random.randint(140, 260)
@@ -65,7 +63,6 @@ def create_demo_leaf(condition="yellow_rust"):
 def analyze_leaf(image_pil):
     img_np = np.array(image_pil.convert('RGB'))
     img_resized = cv2.resize(img_np, (300, 300))
-    
     R = img_resized[:, :, 0].astype(float)
     G = img_resized[:, :, 1].astype(float)
     B = img_resized[:, :, 2].astype(float)
@@ -76,7 +73,6 @@ def analyze_leaf(image_pil):
         
     exg = (2 * G - R - B) / 255.0
     vari = (G - R) / (G + R - B + 1e-5)
-    
     mean_exg = float(np.mean(exg[leaf_mask]))
     mean_vari = float(np.mean(vari[leaf_mask]))
     
@@ -139,13 +135,11 @@ with st.sidebar:
     st.title("🌾 AgroVision AI")
     st.caption("Бидай ауруларын ерте диагностикалау және өнімділікті арттыру жүйесі")
     st.divider()
-    
     page = st.radio("Мәзірді таңдаңыз:", [
         "🔍 ЖИ-Диагностика",
         "🚁 Дрон маршруты (2D)",
         "📚 Аурулар анықтамалығы"
     ])
-    
     st.divider()
     st.subheader("📍 Шаруашылық баптаулары")
     region = st.selectbox("Өңір (Қазақстан):", [
@@ -172,7 +166,7 @@ if page == "🔍 ЖИ-Диагностика":
             "Демо 2: Азот тапшылығы",
             "Демо 3: Сау бидай"
         ])
-    
+        
     target_image = None
     if uploaded_file is not None:
         target_image = Image.open(uploaded_file)
@@ -207,7 +201,6 @@ if page == "🔍 ЖИ-Диагностика":
         m3.metric("Зақымдану ауданы", f"{dmg}%")
         m4.metric("Псевдо-NDVI (VARI)", f"{vari_val}", delta="Қалыпты" if vari_val > 0.1 else "Төмен (Стресс)", delta_color="normal" if vari_val > 0.1 else "inverse")
         
-        # Нақты ауа райы API нәтижесін көрсету
         if temp is not None and hum is not None:
             risk_level = "ЖОҒАРЫ (Саңырауқұлақ өршуіне қолайлы)" if hum > 70 else "ОРТАША / ҚАЛЫПТЫ"
             st.info(f"🛰 **Тікелей Метео-бақылау (Open-Meteo API — {region}):** Қазіргі температура: **{temp}°C**, Ауа ылғалдылығы: **{hum}%**. Індет таралу қаупі: **{risk_level}**.")
@@ -233,34 +226,20 @@ if page == "🔍 ЖИ-Диагностика":
                 saved_pct = round((saved_money / full_cost) * 100, 1)
                 
                 st.write(f"Егістік көлемі: **{hectares} га**")
-st.write(f"❌ Дәстүрлі жаппай өңдеу шығыны: {full_cost:,} ₸")
-st.write(f"✅ ЖИ арқылы тек ауру ошағын ({round(spot_area*100, 1)}%) өңдеу: {spot_cost:,} ₸")
+                st.write(f"❌ Дәстүрлі жаппай өңдеу шығыны: **{full_cost:,} ₸**")
+                st.write(f"✅ ЖИ арқылы тек ауру ошағын ({round(spot_area*100, 1)}%) өңдеу: {spot_cost:,} ₸")
 st.success(f"💵 Сіздің таза үнеміңіз: {saved_money:,} ₸ ({saved_pct}% химикат үнемделді)")
 else:
 saved_money = hectares * 12000
 st.success(f"🎉 Егістік сау! Химикатқа кететін {saved_money:,} ₸ толық үнемделді.")
-
-report_text = f"""AGROVISION AI - ДИАГНОСТИКАЛЫҚ ЕСЕП
-
-
-Өңір: {region}
-Дақыл: {wheat_type} ({hectares} га)
-Ауа райы (Live API): {temp}°C, Ылғалдылық {hum}%
-Диагноз: {diag}
-ЖИ сенімділігі: {conf}%
-Зақымдану ауданы: {dmg}%
-Математикалық индекстер: ExG = {exg_val}, VARI = {vari_val}
-Агроном кеңесі: {info['advice']}
-Препарат: {info['prep']}
-
-"""
+report_text = f"AGROVISION AI - ДИАГНОСТИКАЛЫҚ ЕСЕП\nӨңір: {region}\nДақыл: {wheat_type} ({hectares} га)\nАуа райы: {temp}°C, Ылғалдылық {hum}%\nДиагноз: {diag}\nЖИ сенімділігі: {conf}%\nЗақымдану ауданы: {dmg}%\nИндекстер: ExG = {exg_val}, VARI = {vari_val}\nКеңес: {info['advice']}\nПрепарат: {info['prep']}"
 st.download_button(
 label="📄 Агрономиялық есепті жүктеп алу (Құжат)",
 data=report_text,
 file_name="AgroVision_Report.txt",
 mime="text/plain"
 )
-elif page == "🚁 Дрон маршруты (2D)":
+if page == "🚁 Дрон маршруты (2D)":
 st.title("🚁 Агро-дронның ұшу траекториясын оңтайландыру (Path Planning)")
 st.write("Спутниктік немесе дрондық картадан анықталған ауру ошақтарына дронның ең қысқа ұшу маршрутын автоматты есептеу.")
 num_spots = st.slider("Алқаптағы анықталған ауру ошақтарының саны:", min_value=3, max_value=12, value=6)
@@ -301,12 +280,12 @@ c1, c2, c3 = st.columns(3)
 c1.metric("Ұшу қашықтығы", f"{int(total_dist)} метр", delta="-62% (Жаппай ұшумен салыстырғанда)")
 c2.metric("Батарея үнемі", "58%", delta="1 зарядпен 3 есе көп алқап")
 c3.metric("Химикат үнемі", f"{100 - num_spots*3}%", delta="Тек зақымданған нүктелер өңделді")
-else:
+if page == "📚 Аурулар анықтамалығы":
 st.title("📚 Бидай ауруларының анықтамалығы")
 st.write("Қазақстан егістіктерінде жиі кездесетін негізгі аурулар мен олармен күресу шаралары:")
 for name, data in AGRO_DB.items():
 with st.expander(f"🌾 {name}", expanded=True):
 st.write(f"Сипаттамасы: {data['desc']}")
 st.write(f"Агроном кеңесі: {data['advice']}")
-st.info(f"ҚР реестріндегі препарат: {data['prep']}")
+st.info(f"ҚР реестріндегі препарат: {data['prep']}") 
 
