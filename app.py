@@ -196,7 +196,7 @@ if page == "🔍 ЖИ-Диагностика":
             
         st.divider()
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Диагноз", diag.split("(").strip())
+        m1.metric("Диагноз", diag)
         m2.metric("ЖИ дәлдігі", f"{conf}%")
         m3.metric("Зақымдану ауданы", f"{dmg}%")
         m4.metric("Псевдо-NDVI (VARI)", f"{vari_val}", delta="Қалыпты" if vari_val > 0.1 else "Төмен (Стресс)", delta_color="normal" if vari_val > 0.1 else "inverse")
