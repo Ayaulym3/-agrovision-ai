@@ -237,51 +237,65 @@ file_name="AgroVision_Report.txt",
 mime="text/plain"
 )
 elif page == "🚁 Дрон маршруты (2D)":
-st.title("🚁 Агро-дронның ұшу траекториясын оңтайландыру (Path Planning)")
-st.write("Спутниктік немесе дрондық картадан анықталған ауру ошақтарына дронның ең қысқа ұшу маршрутын автоматты есептеу.")
-num_spots = st.slider("Алқаптағы анықталған ауру ошақтарының саны:", min_value=3, max_value=12, value=6)
-if st.button("🚀 Оңтайлы маршрутты есептеу"):
-np.random.seed(num_spots * 7)
-base = np.array([50, 50])
-spots = np.random.randint(100, 950, size=(num_spots, 2))
-unvisited = list(range(num_spots))
-current_pos = base
-route = [current_pos]
-total_dist = 0
-while unvisited:
-dists = [np.linalg.norm(current_pos - spots[i]) for i in unvisited]
-nearest_idx = unvisited[np.argmin(dists)]
-total_dist += min(dists)
-current_pos = spots[nearest_idx]
-route.append(current_pos)
-unvisited.remove(nearest_idx)
-route.append(base)
-total_dist += np.linalg.norm(current_pos - base)
-route = np.array(route)
-fig, ax = plt.subplots(figsize=(8, 5))
-ax.set_facecolor("#E8F5E9")
-ax.grid(True, linestyle="--", alpha=0.5, color="#81C784")
-ax.plot(route[:, 0], route[:, 1], color="#1B5E20", linewidth=2.5, linestyle="-", label="Оңтайлы траектория (ЖИ)")
-ax.scatter(spots[:, 0], spots[:, 1], color="#DC2626", s=180, zorder=5, label="Ауру ошақтары (Нүктелі өңдеу)")
-ax.scatter(base[0], base[1], color="#F59E0B", s=250, marker="^", zorder=6, label="Дрон станциясы (Старт/Финиш)")
-for i, txt in enumerate(range(1, num_spots + 1)):
-ax.annotate(f"Ошақ #{txt}", (spots[i, 0]+15, spots[i, 1]+15), fontsize=9, fontweight="bold")
-ax.set_xlim(0, 1000)
-ax.set_ylim(0, 1000)
-ax.set_xlabel("Алқап ені (метр)")
-ax.set_ylabel("Алқап ұзындығы (метр)")
-ax.set_title(f"100 га алқаптағы нүктелі өңдеу картасы ({num_spots} ошақ)")
-ax.legend()
-st.pyplot(fig)
-c1, c2, c3 = st.columns(3)
-c1.metric("Ұшу қашықтығы", f"{int(total_dist)} метр", delta="-62% (Жаппай ұшумен салыстырғанда)")
-c2.metric("Батарея үнемі", "58%", delta="1 зарядпен 3 есе көп алқап")
-c3.metric("Химикат үнемі", f"{100 - num_spots*3}%", delta="Тек зақымданған нүктелер өңделді")
+    st.title("🚁 Агро-дронның ұшу траекториясын оңтайландыру (Path Planning)")
+    st.write("Спутниктік немесе дрондық картадан анықталған ауру ошақтарына дронның ең қысқа ұшу маршрутын автоматты есептеу.")
+    
+    num_spots = st.slider("Алқаптағы анықталған ауру ошақтарының саны:", min_value=3, max_value=12, value=6)
+    
+    if st.button("🚀 Оңтайлы маршрутты есептеу"):
+        np.random.seed(num_spots * 7)
+        base = np.array([50, 50])
+        spots = np.random.randint(100, 950, size=(num_spots, 2))
+        
+        unvisited = list(range(num_spots))
+        current_pos = base
+        route = [current_pos]
+        total_dist = 0
+        
+        while unvisited:
+            dists = [np.linalg.norm(current_pos - spots[i]) for i in unvisited]
+            nearest_idx = unvisited[np.argmin(dists)]
+            total_dist += min(dists)
+            current_pos = spots[nearest_idx]
+            route.append(current_pos)
+            unvisited.remove(nearest_idx)
+            
+        route.append(base)
+        total_dist += np.linalg.norm(current_pos - base)
+        route = np.array(route)
+        
+        fig, ax = plt.subplots(figsize=(8, 5))
+        ax.set_facecolor("#E8F5E9")
+        ax.grid(True, linestyle="--", alpha=0.5, color="#81C784")
+        
+        ax.plot(route[:, 0], route[:, 1], color="#1B5E20", linewidth=2.5, linestyle="-", label="Оңтайлы траектория (ЖИ)")
+        ax.scatter(spots[:, 0], spots[:, 1], color="#DC2626", s=180, zorder=5, label="Ауру ошақтары (Нүктелі өңдеу)")
+        ax.scatter(base[0], base[1], color="#F59E0B", s=250, marker="^", zorder=6, label="Дрон станциясы (Старт/Финиш)")
+        
+        for i, txt in enumerate(range(1, num_spots + 1)):
+            ax.annotate(f"Ошақ #{txt}", (spots[i, 0]+15, spots[i, 1]+15), fontsize=9, fontweight="bold")
+            
+        ax.set_xlim(0, 1000)
+        ax.set_ylim(0, 1000)
+        ax.set_xlabel("Алқап ені (метр)")
+        ax.set_ylabel("Алқап ұзындығы (метр)")
+        ax.set_title(f"100 га алқаптағы нүктелі өңдеу картасы ({num_spots} ошақ)")
+        ax.legend()
+        
+        st.pyplot(fig)
+        
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Ұшу қашықтығы", f"{int(total_dist)} метр", delta="-62% (Жаппай ұшумен салыстырғанда)")
+        c2.metric("Батарея үнемі", "58%", delta="1 зарядпен 3 есе көп алқап")
+        c3.metric("Химикат үнемі", f"{100 - num_spots*3}%", delta="Тек зақымданған нүктелер өңделді")
+
 else:
-st.title("📚 Бидай ауруларының анықтамалығы")
-st.write("Қазақстан егістіктерінде жиі кездесетін негізгі аурулар мен олармен күресу шаралары:")
-for name, data in AGRO_DB.items():
-with st.expander(f"🌾 {name}", expanded=True):
-st.write(f"Сипаттамасы: {data['desc']}")
-st.write(f"Агроном кеңесі: {data['advice']}")
-st.info(f"ҚР реестріндегі препарат: {data['prep']}")
+    st.title("📚 Бидай ауруларының анықтамалығы")
+    st.write("Қазақстан егістіктерінде жиі кездесетін негізгі аурулар мен олармен күресу шаралары:")
+    
+    for name, data in AGRO_DB.items():
+        with st.expander(f"🌾 {name}", expanded=True):
+            st.write(f"**Сипаттамасы:** {data['desc']}")
+            st.write(f"**Агроном кеңесі:** {data['advice']}")
+            st.info(f"**ҚР реестріндегі препарат:** {data['prep']}")
+
