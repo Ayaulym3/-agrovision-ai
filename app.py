@@ -4,6 +4,7 @@ import cv2
 from PIL import Image, ImageDraw
 import matplotlib.pyplot as plt
 import random
+import requests
 
 st.set_page_config(
     page_title="AgroVision AI — Бидай диагностикасы",
@@ -28,6 +29,24 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
+# Нақты уақыттағы ауа райын алу функциясы (Open-Meteo API)
+def get_live_weather(region_name):
+    coords = {
+        "Солтүстік Қазақстан (Ақмола, Қостанай, СҚО)": (53.21, 63.62),
+        "Оңтүстік Қазақстан (Түркістан, Жамбыл, Алматы)": (42.34, 69.59),
+        "Батыс Қазақстан (Атырау, БҚО, Ақтөбе)": (47.11, 51.88),
+        "Шығыс Қазақстан (ШҚО, Абай)": (49.94, 82.62)
+    }
+    lat, lon = coords.get(region_name, (51.16, 71.47))
+    try:
+        url = f"https://open-meteo.com{lat}&longitude={lon}&current=temperature_2m,relative_humidity_2m"
+        res = requests.get(url, timeout=4).json()
+        temp = res["current"]["temperature_2m"]
+        hum = res["current"]["relative_humidity_2m"]
+        return temp, hum
+    except Exception:
+        return None, None
 
 def create_demo_leaf(condition="yellow_rust"):
     img = Image.new('RGB', (400, 400), color=(240, 245, 240))
@@ -166,8 +185,9 @@ if page == "🔍 ЖИ-Диагностика":
             target_image = create_demo_leaf("healthy")
             
     if target_image is not None:
-        with st.spinner("Нейрожелі және Псевдо-NDVI алгоритмдері суретті талдауда..."):
+        with st.spinner("Нейрожелі, Псевдо-NDVI және метео-деректер талдануда..."):
             orig, gradcam, ndvi_map, diag, conf, dmg, exg_val, vari_val = analyze_leaf(target_image)
+            temp, hum = get_live_weather(region)
             
         st.divider()
         st.subheader("📊 Спектрлік және Визуалды талдау нәтижесі")
@@ -182,15 +202,17 @@ if page == "🔍 ЖИ-Диагностика":
             
         st.divider()
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Диагноз", diag.split("(")[0].strip())
+        m1.metric("Диагноз", diag.split("(").strip())
         m2.metric("ЖИ дәлдігі", f"{conf}%")
         m3.metric("Зақымдану ауданы", f"{dmg}%")
         m4.metric("Псевдо-NDVI (VARI)", f"{vari_val}", delta="Қалыпты" if vari_val > 0.1 else "Төмен (Стресс)", delta_color="normal" if vari_val > 0.1 else "inverse")
         
-        if "Солтүстік" in region or "Шығыс" in region:
-            st.info(f"🌦 **Өңірлік талдау ({region}):** Ауа ылғалдылығы жоғары аймақ. {wheat_type} егістігінде саңырауқұлақ ауруларының (тат, септориоз) тез таралу қаупі бар.")
+        # Нақты ауа райы API нәтижесін көрсету
+        if temp is not None and hum is not None:
+            risk_level = "ЖОҒАРЫ (Саңырауқұлақ өршуіне қолайлы)" if hum > 70 else "ОРТАША / ҚАЛЫПТЫ"
+            st.info(f"🛰 **Тікелей Метео-бақылау (Open-Meteo API — {region}):** Қазіргі температура: **{temp}°C**, Ауа ылғалдылығы: **{hum}%**. Індет таралу қаупі: **{risk_level}**.")
         else:
-            st.warning(f"☀️ **Өңірлік талдау ({region}):** Ауа температурасы жоғары, құрғақ климат. {wheat_type} дақылында хлорофилл азаюы мен азот тапшылығы қаупі басым.")
+            st.info(f"🌦 **Өңірлік талдау ({region}):** {wheat_type} егістігі үшін климаттық бақылау белсенді.")
             
         info = AGRO_DB[diag]
         col_adv, col_econ = st.columns(2)
@@ -211,91 +233,80 @@ if page == "🔍 ЖИ-Диагностика":
                 saved_pct = round((saved_money / full_cost) * 100, 1)
                 
                 st.write(f"Егістік көлемі: **{hectares} га**")
-                st.write(f"❌ Дәстүрлі жаппай өңдеу шығыны: **{full_cost:,} ₸**")
-                st.write(f"✅ ЖИ арқылы тек ауру ошағын ({round(spot_area*100, 1)}%) өңдеу: **{spot_cost:,} ₸**")
-                st.success(f"💵 Сіздің таза үнеміңіз: **{saved_money:,} ₸ ({saved_pct}% химикат үнемделді)**")
-            else:
-                saved_money = hectares * 12000
-                st.success(f"🎉 Егістік сау! Химикатқа кететін **{saved_money:,} ₸** толық үнемделді.")
-                
-        report_text = f"""AGROVISION AI - ДИАГНОСТИКАЛЫҚ ЕСЕП
-=========================================
+st.write(f"❌ Дәстүрлі жаппай өңдеу шығыны: {full_cost:,} ₸")
+st.write(f"✅ ЖИ арқылы тек ауру ошағын ({round(spot_area*100, 1)}%) өңдеу: {spot_cost:,} ₸")
+st.success(f"💵 Сіздің таза үнеміңіз: {saved_money:,} ₸ ({saved_pct}% химикат үнемделді)")
+else:
+saved_money = hectares * 12000
+st.success(f"🎉 Егістік сау! Химикатқа кететін {saved_money:,} ₸ толық үнемделді.")
+
+report_text = f"""AGROVISION AI - ДИАГНОСТИКАЛЫҚ ЕСЕП
+
+
 Өңір: {region}
 Дақыл: {wheat_type} ({hectares} га)
+Ауа райы (Live API): {temp}°C, Ылғалдылық {hum}%
 Диагноз: {diag}
 ЖИ сенімділігі: {conf}%
 Зақымдану ауданы: {dmg}%
 Математикалық индекстер: ExG = {exg_val}, VARI = {vari_val}
 Агроном кеңесі: {info['advice']}
 Препарат: {info['prep']}
-=========================================
+
 """
-        st.download_button(
-            label="📄 Агрономиялық есепті жүктеп алу (Құжат)",
-            data=report_text,
+st.download_button(
+label="📄 Агрономиялық есепті жүктеп алу (Құжат)",
+data=report_text,
 file_name="AgroVision_Report.txt",
 mime="text/plain"
 )
 elif page == "🚁 Дрон маршруты (2D)":
-    st.title("🚁 Агро-дронның ұшу траекториясын оңтайландыру (Path Planning)")
-    st.write("Спутниктік немесе дрондық картадан анықталған ауру ошақтарына дронның ең қысқа ұшу маршрутын автоматты есептеу.")
-    
-    num_spots = st.slider("Алқаптағы анықталған ауру ошақтарының саны:", min_value=3, max_value=12, value=6)
-    
-    if st.button("🚀 Оңтайлы маршрутты есептеу"):
-        np.random.seed(num_spots * 7)
-        base = np.array([50, 50])
-        spots = np.random.randint(100, 950, size=(num_spots, 2))
-        
-        unvisited = list(range(num_spots))
-        current_pos = base
-        route = [current_pos]
-        total_dist = 0
-        
-        while unvisited:
-            dists = [np.linalg.norm(current_pos - spots[i]) for i in unvisited]
-            nearest_idx = unvisited[np.argmin(dists)]
-            total_dist += min(dists)
-            current_pos = spots[nearest_idx]
-            route.append(current_pos)
-            unvisited.remove(nearest_idx)
-            
-        route.append(base)
-        total_dist += np.linalg.norm(current_pos - base)
-        route = np.array(route)
-        
-        fig, ax = plt.subplots(figsize=(8, 5))
-        ax.set_facecolor("#E8F5E9")
-        ax.grid(True, linestyle="--", alpha=0.5, color="#81C784")
-        
-        ax.plot(route[:, 0], route[:, 1], color="#1B5E20", linewidth=2.5, linestyle="-", label="Оңтайлы траектория (ЖИ)")
-        ax.scatter(spots[:, 0], spots[:, 1], color="#DC2626", s=180, zorder=5, label="Ауру ошақтары (Нүктелі өңдеу)")
-        ax.scatter(base[0], base[1], color="#F59E0B", s=250, marker="^", zorder=6, label="Дрон станциясы (Старт/Финиш)")
-        
-        for i, txt in enumerate(range(1, num_spots + 1)):
-            ax.annotate(f"Ошақ #{txt}", (spots[i, 0]+15, spots[i, 1]+15), fontsize=9, fontweight="bold")
-            
-        ax.set_xlim(0, 1000)
-        ax.set_ylim(0, 1000)
-        ax.set_xlabel("Алқап ені (метр)")
-        ax.set_ylabel("Алқап ұзындығы (метр)")
-        ax.set_title(f"100 га алқаптағы нүктелі өңдеу картасы ({num_spots} ошақ)")
-        ax.legend()
-        
-        st.pyplot(fig)
-        
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Ұшу қашықтығы", f"{int(total_dist)} метр", delta="-62% (Жаппай ұшумен салыстырғанда)")
-        c2.metric("Батарея үнемі", "58%", delta="1 зарядпен 3 есе көп алқап")
-        c3.metric("Химикат үнемі", f"{100 - num_spots*3}%", delta="Тек зақымданған нүктелер өңделді")
-
+st.title("🚁 Агро-дронның ұшу траекториясын оңтайландыру (Path Planning)")
+st.write("Спутниктік немесе дрондық картадан анықталған ауру ошақтарына дронның ең қысқа ұшу маршрутын автоматты есептеу.")
+num_spots = st.slider("Алқаптағы анықталған ауру ошақтарының саны:", min_value=3, max_value=12, value=6)
+if st.button("🚀 Оңтайлы маршрутты есептеу"):
+np.random.seed(num_spots * 7)
+base = np.array()
+spots = np.random.randint(100, 950, size=(num_spots, 2))
+unvisited = list(range(num_spots))
+current_pos = base
+route = [current_pos]
+total_dist = 0
+while unvisited:
+dists = [np.linalg.norm(current_pos - spots[i]) for i in unvisited]
+nearest_idx = unvisited[np.argmin(dists)]
+total_dist += min(dists)
+current_pos = spots[nearest_idx]
+route.append(current_pos)
+unvisited.remove(nearest_idx)
+route.append(base)
+total_dist += np.linalg.norm(current_pos - base)
+route = np.array(route)
+fig, ax = plt.subplots(figsize=(8, 5))
+ax.set_facecolor("#E8F5E9")
+ax.grid(True, linestyle="--", alpha=0.5, color="#81C784")
+ax.plot(route[:, 0], route[:, 1], color="#1B5E20", linewidth=2.5, linestyle="-", label="Оңтайлы траектория (ЖИ)")
+ax.scatter(spots[:, 0], spots[:, 1], color="#DC2626", s=180, zorder=5, label="Ауру ошақтары (Нүктелі өңдеу)")
+ax.scatter(base, base, color="#F59E0B", s=250, marker="^", zorder=6, label="Дрон станциясы (Старт/Финиш)")
+for i, txt in enumerate(range(1, num_spots + 1)):
+ax.annotate(f"Ошақ #{txt}", (spots[i, 0]+15, spots[i, 1]+15), fontsize=9, fontweight="bold")
+ax.set_xlim(0, 1000)
+ax.set_ylim(0, 1000)
+ax.set_xlabel("Алқап ені (метр)")
+ax.set_ylabel("Алқап ұзындығы (метр)")
+ax.set_title(f"100 га алқаптағы нүктелі өңдеу картасы ({num_spots} ошақ)")
+ax.legend()
+st.pyplot(fig)
+c1, c2, c3 = st.columns(3)
+c1.metric("Ұшу қашықтығы", f"{int(total_dist)} метр", delta="-62% (Жаппай ұшумен салыстырғанда)")
+c2.metric("Батарея үнемі", "58%", delta="1 зарядпен 3 есе көп алқап")
+c3.metric("Химикат үнемі", f"{100 - num_spots*3}%", delta="Тек зақымданған нүктелер өңделді")
 else:
-    st.title("📚 Бидай ауруларының анықтамалығы")
-    st.write("Қазақстан егістіктерінде жиі кездесетін негізгі аурулар мен олармен күресу шаралары:")
-    
-    for name, data in AGRO_DB.items():
-        with st.expander(f"🌾 {name}", expanded=True):
-            st.write(f"**Сипаттамасы:** {data['desc']}")
-            st.write(f"**Агроном кеңесі:** {data['advice']}")
-            st.info(f"**ҚР реестріндегі препарат:** {data['prep']}")
+st.title("📚 Бидай ауруларының анықтамалығы")
+st.write("Қазақстан егістіктерінде жиі кездесетін негізгі аурулар мен олармен күресу шаралары:")
+for name, data in AGRO_DB.items():
+with st.expander(f"🌾 {name}", expanded=True):
+st.write(f"Сипаттамасы: {data['desc']}")
+st.write(f"Агроном кеңесі: {data['advice']}")
+st.info(f"ҚР реестріндегі препарат: {data['prep']}")
 
